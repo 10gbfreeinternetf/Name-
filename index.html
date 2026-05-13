@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Smooth Particle Heart</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #000;
+            font-family: 'Arial', sans-serif;
+            height: 100vh;
+        }
+
+        canvas {
+            display: block;
+            touch-action: none;
+        }
+
+        .ui-container {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            text-align: center;
+            width: 100%;
+            z-index: 100;
+        }
+
+        #continueBtn {
+            display: none;
+            position: fixed;
+            top: 45%; 
+            left: 50%;
+            transform: translate(-50%, -50%);
+            padding: 15px 35px;
+            font-size: 20px;
+            background: #ff4d6d;
+            color: white;
+            border: none;
+            border-radius: 50px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 0 25px rgba(255, 77, 109, 0.7);
+            z-index: 200;
+            white-space: nowrap;
+        }
+
+        .label {
+            color: #ff4d6d;
+            font-size: 14px;
+            letter-spacing: 2px;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            font-weight: bold;
+        }
+
+        input {
+            padding: 12px 20px;
+            font-size: 18px;
+            border: 2px solid #ff4d6d;
+            border-radius: 50px;
+            outline: none;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            width: 80%;
+            max-width: 280px;
+            text-align: center;
+        }
+
+        .share-btn {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            cursor: pointer;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 10px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .share-btn svg {
+            fill: #ff4d6d;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="share-btn" onclick="shareSite()">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92 1.61 0 2.92-1.31 2.92-2.92s-1.31-2.92-2.92-2.92z"/></svg>
+    </div>
+
+    <button id="continueBtn" onclick="handleContinueClick()">Continue</button>
+
+    <canvas id="canvas"></canvas>
+
+    <div class="ui-container" id="uiBox">
+        <div class="label" id="uiLabel">Type Your Name</div>
+        <input type="text" id="textInput" placeholder="Write here..." maxlength="12">
+    </div>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const input = document.getElementById('textInput');
+        const continueBtn = document.getElementById('continueBtn');
+        const uiBox = document.getElementById('uiBox');
+        const targetUrl = "https://www.profitablecpmratenetwork.com/b414zk6xp?key=9ee57a462ad28e7f231f1d36ebde3e3f";
+
+        let particles = [];
+        let heartPoints = [];
+        let ww = window.innerWidth;
+        let wh = window.innerHeight;
+        let idleTimer;
+
+        function initLayout() {
+            canvas.width = ww;
+            canvas.height = wh;
+            heartPoints = [];
+            const precision = 0.05;
+            const size = Math.min(ww, wh) / 35;
+
+            for (let t = 0; t <= Math.PI * 2; t += precision) {
+                let x = 16 * Math.pow(Math.sin(t), 3);
+                let y = -(13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t));
+                heartPoints.push({ x: ww / 2 + x * size, y: wh / 2.5 + y * size });
+            }
+
+            if (particles.length === 0) {
+                for (let i = 0; i < 1500; i++) particles.push(new Particle());
+            }
+
+            // আগের সেভ করা নাম আছে কিনা চেক করা
+            const savedName = localStorage.getItem('user_name');
+            if (savedName) {
+                input.value = savedName;
+            }
+            
+            updateText();
+        }
+
+        class Particle {
+            constructor() {
+                this.x = Math.random() * ww;
+                this.y = Math.random() * wh;
+                this.dest = { x: ww / 2, y: wh / 2 };
+                this.r = Math.random() * 2 + 1;
+                this.vx = (Math.random() - 0.5) * 8;
+                this.vy = (Math.random() - 0.5) * 8;
+                this.accX = 0;
+                this.accY = 0;
+                this.friction = Math.random() * 0.05 + 0.92;
+                this.color = "#ff4d6d";
+            }
+
+            render() {
+                this.accX = (this.dest.x - this.x) / 400;
+                this.accY = (this.dest.y - this.y) / 400;
+                this.vx += this.accX;
+                this.vy += this.accY;
+                this.vx *= this.friction;
+                this.vy *= this.friction;
+                this.x += this.vx;
+                this.y += this.vy;
+
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.r, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        function showContinueButton() {
+            uiBox.style.display = "none"; 
+            continueBtn.style.display = "block";
+            input.blur();
+        }
+
+        function showInputBox() {
+            uiBox.style.display = "block";
+            continueBtn.style.display = "none";
+            resetIdleTimer(); // নতুন করে ১০ সেকেন্ড টাইমার শুরু
+        }
+
+        function handleContinueClick() {
+            // ক্লিক করার আগে নাম সেভ করে রাখা
+            localStorage.setItem('user_name', input.value);
+            window.location.href = targetUrl;
+        }
+
+        function resetIdleTimer() {
+            clearTimeout(idleTimer);
+            if (uiBox.style.display !== "none") {
+                idleTimer = setTimeout(() => {
+                    // ৩ অক্ষরের বেশি হলে বা খালি থাকলেও ১০ সেকেন্ড পর বাটন আসবে
+                    showContinueButton();
+                }, 10000);
+            }
+        }
+
+        function updateText() {
+            const val = input.value;
+            // নাম লেখার সাথে সাথে সেভ করা যাতে ব্যাক করলে পাওয়া যায়
+            localStorage.setItem('user_name', val);
+            
+            resetIdleTimer();
+
+            if (val.length >= 3) {
+                // ইউজার লিখতে থাকলে বাটন দেখাবে না, লেখা থামালে টাইমার কাজ করবে
+            }
+
+            if (!val) {
+                particles.forEach((p, i) => {
+                    p.dest = heartPoints[i % heartPoints.length];
+                    p.color = "#ff4d6d";
+                });
+                return;
+            }
+
+            ctx.clearRect(0, 0, ww, wh);
+            ctx.font = "bold " + (ww / 8) + "px Arial";
+            ctx.textAlign = "center";
+            ctx.fillText(val, ww / 2, wh / 2.5 + 15);
+
+            const data = ctx.getImageData(0, 0, ww, wh).data;
+            let textPoints = [];
+            for (let i = 0; i < ww; i += 4) {
+                for (let j = 0; j < wh; j += 4) {
+                    if (data[((i + j * ww) * 4) + 3] > 150) {
+                        textPoints.push({ x: i, y: j });
+                    }
+                }
+            }
+
+            for (let i = 0; i < particles.length; i++) {
+                let p = particles[i];
+                if (i < textPoints.length) {
+                    p.dest = textPoints[i];
+                    p.color = "#ffffff";
+                } else {
+                    p.dest = heartPoints[i % heartPoints.length];
+                    p.color = "#ff4d6d";
+                }
+            }
+        }
+
+        function shareSite() {
+            const shareData = {
+                title: 'Heart Magic',
+                text: '🥺🥰💝😇',
+                url: window.location.href
+            };
+            if (navigator.share) {
+                navigator.share(shareData);
+            } else {
+                alert("Link copied: " + window.location.href);
+            }
+        }
+
+        // পেজ লোড বা ব্যাক হয়ে আসলে ইনপুট বক্স দেখানো নিশ্চিত করা
+        window.addEventListener('pageshow', (event) => {
+            showInputBox();
+        });
+
+        window.addEventListener('resize', () => {
+            if (window.innerWidth !== ww) {
+                ww = window.innerWidth;
+                wh = window.innerHeight;
+                initLayout();
+            }
+        });
+
+        input.addEventListener('input', updateText);
+        
+        function render() {
+            ctx.clearRect(0, 0, ww, wh);
+            for (let i = 0; i < particles.length; i++) {
+                particles[i].render();
+            }
+            requestAnimationFrame(render);
+        }
+
+        initLayout();
+        render();
+    </script>
+</body>
+</html>
